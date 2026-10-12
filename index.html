@@ -25,8 +25,9 @@
     .menu-caption { display:block; margin-top:6px; font-weight:900; font-size:clamp(.78rem,1.8vh,.98rem); }
     .hint { margin:clamp(15px,3vh,26px) 0 0; text-align:center; color:#4a6258; font-size:.9rem; }
     #playScreen { overflow:hidden; padding:0; }
-    .play-viewport { position:absolute; z-index:1; inset:0; display:grid; place-items:center; overflow:hidden; touch-action:none; }
-    .play-world { position:relative; width:min(82vw,calc(82vh * 1.4788)); aspect-ratio:627 / 424; transform:scale(var(--board-zoom,1)); transform-origin:center; transition:transform .08s linear; filter:drop-shadow(0 8px 12px #142c2555); }
+    .play-viewport { position:absolute; z-index:1; inset:0; display:grid; place-items:center; overflow:hidden; touch-action:none; cursor:grab; }
+    .play-viewport.panning { cursor:grabbing; }
+    .play-world { position:relative; width:min(82vw,calc(82vh * 1.4788)); aspect-ratio:627 / 424; transform:translate(var(--board-pan-x,0px),var(--board-pan-y,0px)) scale(var(--board-zoom,1)); transform-origin:center; transition:transform .08s linear; filter:drop-shadow(0 8px 12px #142c2555); }
     .play-board { display:block; position:absolute; inset:0; width:100%; height:100%; object-fit:fill; user-select:none; -webkit-user-drag:none; pointer-events:none; }
     #cardLayer { position:absolute; inset:0; }
     .play-card { position:absolute; width:9.5%; height:20%; padding:0; border:0; outline:0; border-radius:0; background:transparent; cursor:grab; touch-action:none; user-select:none; -webkit-user-drag:none; filter:drop-shadow(0 2px 3px #132a2455); transition:left .18s cubic-bezier(.2,.75,.25,1),top .18s cubic-bezier(.2,.75,.25,1),filter .16s ease; animation:card-arrive .2s ease-out both; }
@@ -199,7 +200,10 @@
     const faucetProgress=document.querySelector('#faucetProgress');
     const faucetNotice=document.querySelector('#faucetNotice');
     let boardZoom=1;
+    let boardPanX=0;
+    let boardPanY=0;
     const setBoardZoom=value=>{ boardZoom=Math.max(.5,Math.min(2.5,value)); playWorld.style.setProperty('--board-zoom',boardZoom); };
+    const setBoardPan=(x,y)=>{boardPanX=x;boardPanY=y;playWorld.style.setProperty('--board-pan-x',`${x}px`);playWorld.style.setProperty('--board-pan-y',`${y}px`);};
     const openPlay=()=>{ menuScreen.classList.remove('active'); gameScreen.classList.remove('active'); playScreen.classList.add('active'); initializeGame(); window.scrollTo(0,0); };
     const openGallery=()=>{ menuScreen.classList.remove('active'); playScreen.classList.remove('active'); gameScreen.classList.add('active'); window.scrollTo(0,0); };
     const openModal=(title,html)=>{ modalTitle.textContent=title; modalContent.innerHTML=html; modalShade.classList.add('open'); document.querySelector('#closeModal').focus(); };
@@ -461,25 +465,52 @@
     const touchPoints=new Map();
     let pinchStartDistance=0;
     let pinchStartZoom=1;
+    let pinchStartMidpoint={x:0,y:0};
+    let pinchStartPan={x:0,y:0};
+    let panGesture=null;
     const pointerDistance=points=>Math.hypot(points[0].x-points[1].x,points[0].y-points[1].y);
+    const pointerMidpoint=points=>({x:(points[0].x+points[1].x)/2,y:(points[0].y+points[1].y)/2});
     playViewport.addEventListener('pointerdown',event=>{
       if(event.target.closest('.play-card')) return;
-      if(event.pointerType!=='touch') return;
-      touchPoints.set(event.pointerId,{x:event.clientX,y:event.clientY});
-      playViewport.setPointerCapture(event.pointerId);
-      if(touchPoints.size===2){ pinchStartDistance=pointerDistance([...touchPoints.values()]); pinchStartZoom=boardZoom; }
-    });
-    playViewport.addEventListener('pointermove',event=>{
-      if(event.pointerType!=='touch'||!touchPoints.has(event.pointerId)) return;
-      touchPoints.set(event.pointerId,{x:event.clientX,y:event.clientY});
-      if(touchPoints.size===2&&pinchStartDistance>0){
-        const distance=pointerDistance([...touchPoints.values()]);
-        setBoardZoom(pinchStartZoom*(distance/pinchStartDistance));
+      if(event.pointerType==='touch'){
+        touchPoints.set(event.pointerId,{x:event.clientX,y:event.clientY});
+        playViewport.setPointerCapture(event.pointerId);
+        if(touchPoints.size===1)panGesture={pointerId:event.pointerId,x:event.clientX,y:event.clientY,panX:boardPanX,panY:boardPanY};
+        if(touchPoints.size===2){
+          panGesture=null;playViewport.classList.add('panning');
+          const points=[...touchPoints.values()];pinchStartDistance=pointerDistance(points);pinchStartZoom=boardZoom;
+          pinchStartMidpoint=pointerMidpoint(points);pinchStartPan={x:boardPanX,y:boardPanY};
+        }
+        return;
+      }
+      if(event.pointerType==='mouse'&&event.button===0){
+        panGesture={pointerId:event.pointerId,x:event.clientX,y:event.clientY,panX:boardPanX,panY:boardPanY};
+        playViewport.setPointerCapture(event.pointerId);playViewport.classList.add('panning');event.preventDefault();
       }
     });
-    const endPinch=event=>{ touchPoints.delete(event.pointerId); if(touchPoints.size<2) pinchStartDistance=0; };
-    playViewport.addEventListener('pointerup',endPinch);
-    playViewport.addEventListener('pointercancel',endPinch);
+    playViewport.addEventListener('pointermove',event=>{
+      if(event.pointerType==='touch'&&touchPoints.has(event.pointerId)){
+        touchPoints.set(event.pointerId,{x:event.clientX,y:event.clientY});
+        if(touchPoints.size===2&&pinchStartDistance>0){
+          const points=[...touchPoints.values()],distance=pointerDistance(points),midpoint=pointerMidpoint(points);
+          setBoardZoom(pinchStartZoom*(distance/pinchStartDistance));
+          setBoardPan(pinchStartPan.x+midpoint.x-pinchStartMidpoint.x,pinchStartPan.y+midpoint.y-pinchStartMidpoint.y);
+        }else if(panGesture?.pointerId===event.pointerId){
+          setBoardPan(panGesture.panX+event.clientX-panGesture.x,panGesture.panY+event.clientY-panGesture.y);
+        }
+        return;
+      }
+      if(event.pointerType==='mouse'&&panGesture?.pointerId===event.pointerId)setBoardPan(panGesture.panX+event.clientX-panGesture.x,panGesture.panY+event.clientY-panGesture.y);
+    });
+    const endPanGesture=event=>{
+      if(event.pointerType==='touch'&&touchPoints.has(event.pointerId)){
+        touchPoints.delete(event.pointerId);if(touchPoints.size<2)pinchStartDistance=0;
+        if(touchPoints.size===1){const [pointerId,point]=[...touchPoints.entries()][0];panGesture={pointerId,x:point.x,y:point.y,panX:boardPanX,panY:boardPanY};}
+        else if(touchPoints.size===0){panGesture=null;playViewport.classList.remove('panning');}
+      }else if(panGesture?.pointerId===event.pointerId){panGesture=null;playViewport.classList.remove('panning');}
+    };
+    playViewport.addEventListener('pointerup',endPanGesture);
+    playViewport.addEventListener('pointercancel',endPanGesture);
     document.querySelector('#closeModal').addEventListener('click',()=>{if(!gameOver)closeModal();});
     modalShade.addEventListener('click',event=>{ if(event.target===modalShade&&!gameOver) closeModal(); });
     document.addEventListener('keydown',event=>{ if(event.key==='Escape'&&!gameOver) closeModal(); });
