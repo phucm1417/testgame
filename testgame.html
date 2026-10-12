@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bếp Thẻ — Menu game</title>
+  <style>
+    :root { color-scheme: light; --ink:#2d453d; --green:#397b70; --cream:#f4e8cc; --paper:#fff8e9; --line:#b49b73; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-width:320px; min-height:100vh; color:var(--ink); font:16px/1.4 "Trebuchet MS","Segoe UI",sans-serif; }
+    button { font:inherit; }
+    .screen { position:fixed; inset:0; display:none; overflow:auto; padding:clamp(10px,2.2vh,20px); background:#338578 url("testgame-assets/UI va bieu tuong/nen-xanh.png") center/cover no-repeat; }
+    .screen.active { display:block; }
+    .screen::after { content:""; position:fixed; inset:0; pointer-events:none; box-shadow:inset 0 0 0 7px #f8eed5a8,inset 0 0 0 12px #344d4380; }
+    .menu-layout { position:relative; z-index:1; width:min(980px,100%); min-height:calc(100vh - 4.4vh); margin:0 auto; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:clamp(16px,4vh,38px) clamp(14px,4vw,42px); }
+    .brand { width:min(45vh,390px); height:min(45vh,390px); min-height:210px; object-fit:contain; }
+    .tagline { margin:-12px 0 clamp(16px,3vh,28px); font-weight:900; font-size:clamp(.7rem,1.8vh,.95rem); letter-spacing:.23em; text-transform:uppercase; text-align:center; color:#3b5b50; }
+    .menu-actions { display:grid; grid-template-columns:repeat(4,minmax(94px,148px)); gap:clamp(8px,2vw,20px); justify-content:center; width:100%; }
+    .menu-action { position:relative; display:block; width:100%; padding:0; border:0; background:transparent; color:var(--ink); cursor:pointer; text-align:center; transition:transform .15s ease,filter .15s ease; }
+    .menu-action:hover,.menu-action:focus-visible { transform:translateY(-5px); filter:drop-shadow(0 7px 3px #21392b44); outline:none; }
+    .menu-action:disabled { cursor:not-allowed; opacity:.62; filter:grayscale(.35); }
+    .menu-action:disabled:hover { transform:none; filter:grayscale(.35); }
+    .menu-action img { display:block; width:100%; aspect-ratio:1; object-fit:contain; user-select:none; -webkit-user-drag:none; }
+    .art-title { position:absolute; top:8%; left:19%; width:62%; height:16%; display:grid; place-items:center; overflow:hidden; border:1px solid #eee7d6; border-radius:4px; background:#828282; color:#fffdf4; font-size:clamp(.62rem,1.5vw,.92rem); line-height:1; font-weight:900; text-shadow:0 1px 2px #353535; }
+    .menu-caption { display:block; margin-top:6px; font-weight:900; font-size:clamp(.78rem,1.8vh,.98rem); }
+    .hint { margin:clamp(15px,3vh,26px) 0 0; text-align:center; color:#4a6258; font-size:.9rem; }
+    #playScreen { overflow:hidden; padding:0; }
+    .play-viewport { position:absolute; z-index:1; inset:0; display:grid; place-items:center; overflow:hidden; touch-action:none; }
+    .play-world { position:relative; width:min(82vw,calc(82vh * 1.4788)); aspect-ratio:627 / 424; transform:scale(var(--board-zoom,1)); transform-origin:center; transition:transform .08s linear; filter:drop-shadow(0 8px 12px #142c2555); }
+    .play-board { display:block; position:absolute; inset:0; width:100%; height:100%; object-fit:fill; user-select:none; -webkit-user-drag:none; pointer-events:none; }
+    #cardLayer { position:absolute; inset:0; }
+    .play-card { position:absolute; width:9.5%; height:20%; padding:0; border:0; outline:0; border-radius:0; background:transparent; cursor:grab; touch-action:none; user-select:none; -webkit-user-drag:none; filter:drop-shadow(0 2px 3px #132a2455); transition:left .18s cubic-bezier(.2,.75,.25,1),top .18s cubic-bezier(.2,.75,.25,1),filter .16s ease; animation:card-arrive .2s ease-out both; }
+    .play-card:active { cursor:grabbing; }
+    .play-card.dragging { transition:none; filter:drop-shadow(0 4px 5px #132a2477); }
+    @keyframes card-arrive { from { opacity:.65; transform:translateY(5px) scale(.97); } to { opacity:1; transform:translateY(0) scale(1); } }
+    .play-card img { display:block; width:100%; height:100%; object-fit:contain; border:0; outline:0; pointer-events:none; -webkit-user-drag:none; }
+    .faucet-progress { position:absolute; z-index:1000; width:8%; height:1.5%; min-height:6px; border:1px solid #fff; border-radius:8px; background:#182d26d9; box-shadow:0 1px 4px #14251b99; pointer-events:none; }
+    .faucet-progress i { display:block; width:0; height:100%; border-radius:inherit; background:#45d15f; transition:width .18s ease; }
+    .faucet-progress span { position:absolute; right:0; bottom:calc(100% + 2px); color:#fff; font:800 10px/1 sans-serif; text-shadow:0 1px 3px #14251b,0 0 2px #14251b; }
+    .faucet-notice { position:absolute; z-index:4; top:78px; right:22px; margin:0; padding:9px 13px; border:2px solid #fff4dc; border-radius:11px; background:#2b5e52ed; color:#fff8e9; font-weight:900; opacity:0; transform:translateY(-5px); transition:opacity .16s ease,transform .16s ease; pointer-events:none; }
+    .faucet-notice.visible { opacity:1; transform:translateY(0); }
+    .task-progress { position:absolute; z-index:2; left:8%; right:8%; bottom:9%; height:10px; border:1px solid #fff; border-radius:8px; background:#182d26e8; box-shadow:0 1px 4px #14251b99; pointer-events:none; overflow:visible; }
+    .task-progress i { display:block; width:0; height:100%; border-radius:inherit; background:#45d15f; transition:width .1s linear; }
+    .task-progress span { position:absolute; right:0; bottom:calc(100% + 3px); padding:2px 4px; border-radius:4px; background:#182d26e8; color:#fff; font:800 10px/1 sans-serif; white-space:nowrap; }
+    .customer-order { position:absolute; z-index:4; right:22px; bottom:18px; width:min(290px,calc(100vw - 28px)); padding:15px; border:3px solid #fff4dc; border-radius:16px; background:#f3e8d3f2; color:var(--ink); box-shadow:0 6px 0 #536d5b; }
+    .customer-order h2 { margin:0 0 8px; font-size:1.08rem; }
+    .customer-order-content { display:flex; align-items:center; gap:12px; font-weight:800; }
+    .customer-order-content img { width:62px; height:82px; object-fit:contain; }
+    .customer-order-close { position:absolute; top:7px; right:8px; padding:3px 8px; border:0; border-radius:8px; background:var(--green); color:white; font-weight:900; cursor:pointer; }
+    .mood-counters { position:absolute; z-index:4; top:50%; right:10px; display:flex; flex-direction:column; gap:8px; transform:translateY(-50%); pointer-events:none; }
+    .mood-counter { display:grid; justify-items:center; min-width:48px; padding:6px 7px; border:2px solid #fff4dc; border-radius:13px; background:#f3e8d3ed; color:var(--ink); box-shadow:0 3px 0 #536d5b; font-weight:900; line-height:1.1; }
+    .mood-counter-icon { font-size:23px; }
+    .play-topline { position:absolute; z-index:2; top:18px; left:22px; right:22px; display:flex; justify-content:space-between; align-items:center; pointer-events:none; }
+    .play-topline > * { pointer-events:auto; }
+    .topline { position:relative; z-index:2; width:min(1180px,100%); margin:0 auto 16px; display:flex; align-items:center; justify-content:space-between; gap:14px; }
+    .game-title { margin:0; padding:8px 16px; border:3px solid #fff4dc; border-radius:13px; background:#f3e8d3ed; box-shadow:0 4px 0 #536d5b; font-size:clamp(1.2rem,3vw,1.8rem); }
+    .back-button { display:flex; align-items:center; gap:8px; padding:5px 12px 5px 5px; border:2px solid #fff4dc; border-radius:13px; background:#f3e8d3ed; color:var(--ink); font-weight:900; cursor:pointer; box-shadow:0 4px 0 #536d5b; }
+    .back-button img { width:48px; height:48px; object-fit:contain; }
+    .recipe-button { padding:10px 15px; border:2px solid #fff4dc; border-radius:13px; background:#f3e8d3ed; color:var(--ink); font-weight:900; cursor:pointer; box-shadow:0 4px 0 #536d5b; }
+    .play-topline .game-title { margin-right:auto; }
+    .recipe-list { display:grid; gap:10px; text-align:left; }
+    .recipe-item { display:flex; align-items:center; gap:12px; padding:10px; border:2px solid #d1bd99; border-radius:14px; background:#fff8e9; }
+    .recipe-item img { width:64px; height:64px; object-fit:contain; }
+    .empty-recipes { margin:8px 0; }
+    .gallery-wrap { position:relative; z-index:1; width:min(1180px,100%); margin:auto; padding:clamp(15px,3vw,28px); border:4px solid #fff3dd; border-radius:22px; background:#f7eddcf2; box-shadow:0 8px 0 #3454499c; }
+    .filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; }
+    .filters button { padding:8px 14px; border:2px solid var(--green); border-radius:999px; background:#fff9eb; color:var(--ink); font-weight:800; cursor:pointer; }
+    .filters button[aria-pressed="true"],.filters button:hover { background:var(--green); color:#fff; }
+    .group { margin:20px 0 30px; }
+    .group h2 { display:flex; align-items:center; gap:10px; margin:0 0 12px; font-size:1.2rem; }
+    .count { padding:2px 9px; border-radius:20px; background:#dce8d7; font-size:.8rem; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(135px,1fr)); gap:13px; }
+    .asset-card { display:flex; min-height:195px; flex-direction:column; align-items:center; justify-content:space-between; padding:11px; border:2px solid var(--line); border-radius:16px; background:var(--paper); box-shadow:0 4px 0 #c7b895; text-align:center; }
+    .asset-card img { display:block; width:100%; height:142px; object-fit:contain; user-select:none; -webkit-user-drag:none; }
+    .asset-card h3 { margin:7px 0 0; font-size:.92rem; }
+    .modal-shade { position:fixed; z-index:5; inset:0; display:none; place-items:center; padding:18px; background:#14251ec9; }
+    .modal-shade.open { display:grid; }
+    .modal { width:min(460px,100%); padding:22px; border:4px solid #fff1d5; border-radius:20px; background:#f6ecd9; box-shadow:0 9px 0 #263f35; text-align:center; }
+    .modal h2 { margin:0 0 10px; }
+    .setting-tile { display:flex; align-items:center; gap:14px; margin:12px 0; padding:10px; border:2px solid #d1bd99; border-radius:14px; background:#fff8e9; text-align:left; }
+    .setting-tile img { width:74px; height:74px; object-fit:contain; }
+    .close-button { margin-top:10px; padding:9px 18px; border:0; border-radius:10px; background:var(--green); color:#fff; font-weight:900; cursor:pointer; }
+    [hidden] { display:none !important; }
+    @media(max-width:540px) {
+      .menu-layout { min-height:calc(100vh - 20px); padding:12px 10px; }
+      .brand { width:min(37vh,270px); height:min(37vh,270px); min-height:165px; }
+      .menu-actions { grid-template-columns:repeat(2,minmax(100px,136px)); gap:8px 14px; }
+      .menu-caption { margin-top:2px; }
+      .hint { margin-top:12px; }
+      .play-topline { top:12px; left:12px; right:12px; }
+      .play-world { width:min(94vw,calc(70vh * 1.4788)); }
+      .play-topline { gap:8px; }
+      .play-topline .game-title { padding:7px 10px; }
+      .recipe-button { padding:8px 10px; }
+      .faucet-notice { top:58px; right:12px; }
+      .customer-order { right:12px; bottom:12px; }
+      .gallery-wrap { padding:13px; }
+      .grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+      .asset-card { min-height:174px; }
+      .asset-card img { height:124px; }
+    }
+    @media(max-height:530px) and (min-width:541px) { .brand { width:180px; height:180px; min-height:0; } .tagline { margin:0 0 8px; } .hint { margin-top:8px; } }
+  </style>
+</head>
+<body>
+  <section class="screen active" id="menuScreen" aria-label="Menu chính">
+    <main class="menu-layout">
+      <img class="brand" src="testgame-assets/UI va bieu tuong/logo.jpg" alt="Logo Bếp Thẻ">
+      <p class="tagline">Quán nhỏ · Món ngon</p>
+      <nav class="menu-actions" aria-label="Menu game">
+        <button class="menu-action" type="button" data-action="start" aria-label="Bắt đầu">
+          <img src="testgame-assets/UI va bieu tuong/nut_bat_dau.png" alt=""><span class="art-title">BẮT ĐẦU</span><span class="menu-caption">Bắt đầu</span>
+        </button>
+        <button class="menu-action" type="button" data-action="kitchen" aria-label="Nhà bếp">
+          <img src="testgame-assets/UI va bieu tuong/nut_bep.png" alt=""><span class="art-title">NHÀ BẾP</span><span class="menu-caption">Nhà bếp</span>
+        </button>
+        <button class="menu-action" type="button" data-action="settings" aria-label="Cài đặt">
+          <img src="testgame-assets/UI va bieu tuong/nut_cai_dat.png" alt=""><span class="art-title">CÀI ĐẶT</span><span class="menu-caption">Cài đặt</span>
+        </button>
+        <button class="menu-action" type="button" data-action="quit" aria-label="Thoát">
+          <img src="testgame-assets/UI va bieu tuong/nut_thoat.png" alt=""><span class="art-title">THOÁT</span><span class="menu-caption">Thoát</span>
+        </button>
+      </nav>
+      <p class="hint">Chọn một thẻ để vào bếp</p>
+    </main>
+  </section>
+
+  <section class="screen" id="playScreen" aria-label="Màn chơi">
+    <div class="play-viewport" id="playViewport">
+      <div class="play-world" id="playWorld">
+        <img class="play-board" id="playBoard" src="testgame-assets/UI va bieu tuong/nen-giua.png" alt="Bàn chơi họa tiết ô vuông và hoa văn xanh">
+        <div id="cardLayer" aria-label="Các thẻ trong màn chơi">
+          <div class="faucet-progress" id="faucetProgress" aria-label="Tiến độ lấy nước"><i></i><span>0%</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="play-topline">
+      <h1 class="game-title">Màn chơi</h1>
+      <button class="recipe-button" id="recipeBook" type="button">Công thức</button>
+      <button class="back-button" id="playBackToMenu" type="button"><img src="testgame-assets/UI va bieu tuong/nut_quay_lai.png" alt=""><span>Về menu</span></button>
+    </div>
+    <p class="faucet-notice" id="faucetNotice" aria-live="polite"></p>
+    <aside class="mood-counters" aria-label="Thống kê cảm xúc khách hàng">
+      <div class="mood-counter" aria-label="Khách đã phục vụ"><span class="mood-counter-icon" aria-hidden="true">🙂</span><span id="happyCount">0</span></div>
+      <div class="mood-counter" aria-label="Khách đã rời đi"><span class="mood-counter-icon" aria-hidden="true">😠</span><span id="angryCount">0</span></div>
+    </aside>
+    <aside class="customer-order" id="customerOrder" hidden aria-live="polite">
+      <button class="customer-order-close" id="closeCustomerOrder" type="button" aria-label="Đóng yêu cầu">×</button>
+      <h2>Khách hàng yêu cầu</h2>
+      <div class="customer-order-content" id="customerOrderContent"></div>
+    </aside>
+  </section>
+
+  <section class="screen" id="gameScreen" aria-label="Thư viện thẻ trong bếp">
+    <div class="topline">
+      <h1 class="game-title">Nhà bếp · Thẻ món ngon</h1>
+      <button class="back-button" id="backToMenu" type="button"><img src="testgame-assets/UI va bieu tuong/nut_quay_lai.png" alt=""><span>Về menu</span></button>
+    </div>
+    <main class="gallery-wrap">
+      <nav class="filters" aria-label="Lọc loại thẻ" id="filters"></nav>
+      <div id="gallery"></div>
+    </main>
+  </section>
+
+  <div class="modal-shade" id="modalShade" role="presentation">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <h2 id="modalTitle"></h2>
+      <div id="modalContent"></div>
+      <button class="close-button" id="closeModal" type="button">Đóng</button>
+    </section>
+  </div>
+
+  <script>
+    const ui = 'testgame-assets/UI va bieu tuong/';
+    const categories = [
+      { id:'nguyen-lieu', label:'Nguyên liệu', files:['chuoi.png','dau-an.png','duong-the.png','mieng-thit.png','muoi-bien.png','nuoc-duplicate.png','nuoc-tuong.png','tao.png','thit.png','trung.png'] },
+      { id:'mon-an', label:'Món ăn', files:['nuoc-ep-chuoi-2.png','nuoc-ep-tao-2.png','thit-chien-2.png','thit-chien-3.png','trung-chien-2.png'] },
+      { id:'dung-cu-bep', label:'Dụng cụ bếp', files:['cay-danh-trung.png','chao-chien.png','dao.png','thot.png'] },
+      { id:'thiet-bi-bep', label:'Thiết bị bếp', files:['bep-ga.png','binh-dien.png','binh-phat-dien.png','lo-nuong.png','lo-vi-song.png','may-pha-ca-phe.png','may-xay-sinh-to.png','noi-kho.png'] },
+      { id:'khac', label:'Khác', files:['mot-dong.png'] },
+    ];
+    const names = {
+      'bep-ga':'Bếp ga','binh-dien':'Bình điện','binh-phat-dien':'Bình phát điện','cay-danh-trung':'Cây đánh trứng','chao-chien':'Chảo chiên','chuoi':'Chuối','dao':'Dao','dau-an':'Dầu ăn','duong-the':'Đường','lo-nuong':'Lò nướng','lo-vi-song':'Lò vi sóng','may-pha-ca-phe':'Máy pha cà phê','may-xay-sinh-to':'Máy xay sinh tố','mieng-thit':'Miếng thịt','mot-dong':'Một đồng','muoi-bien':'Muối biển','noi-kho':'Nồi kho','nuoc-duplicate':'Nước','nuoc-ep-chuoi-2':'Nước ép chuối','nuoc-ep-tao-2':'Nước ép táo','nuoc-tuong':'Nước tương','tao':'Táo','thit-chien-2':'Thịt chiên','thit-chien-3':'Thịt chiên (biến thể)','thit':'Thịt','thot':'Thớt','trung-chien-2':'Trứng chiên','trung':'Trứng'
+    };
+    const menuScreen=document.querySelector('#menuScreen');
+    const playScreen=document.querySelector('#playScreen');
+    const gameScreen=document.querySelector('#gameScreen');
+    const modalShade=document.querySelector('#modalShade');
+    const modalTitle=document.querySelector('#modalTitle');
+    const modalContent=document.querySelector('#modalContent');
+    const customerOrder=document.querySelector('#customerOrder');
+    const customerOrderContent=document.querySelector('#customerOrderContent');
+    const happyCountElement=document.querySelector('#happyCount');
+    const angryCountElement=document.querySelector('#angryCount');
+    const playViewport=document.querySelector('#playViewport');
+    const playBoard=document.querySelector('#playBoard');
+    const playWorld=document.querySelector('#playWorld');
+    const cardLayer=document.querySelector('#cardLayer');
+    const faucetProgress=document.querySelector('#faucetProgress');
+    const faucetNotice=document.querySelector('#faucetNotice');
+    let boardZoom=1;
+    const setBoardZoom=value=>{ boardZoom=Math.max(.5,Math.min(2.5,value)); playWorld.style.setProperty('--board-zoom',boardZoom); };
+    const openPlay=()=>{ menuScreen.classList.remove('active'); gameScreen.classList.remove('active'); playScreen.classList.add('active'); initializeGame(); window.scrollTo(0,0); };
+    const openGallery=()=>{ menuScreen.classList.remove('active'); playScreen.classList.remove('active'); gameScreen.classList.add('active'); window.scrollTo(0,0); };
+    const openModal=(title,html)=>{ modalTitle.textContent=title; modalContent.innerHTML=html; modalShade.classList.add('open'); document.querySelector('#closeModal').focus(); };
+    const closeModal=()=>modalShade.classList.remove('open');
+    const gameCards=[];
+    const discoveredRecipes=new Set();
+    let nextCardId=1;
+    let highestCard=10;
+    const recipeDefinitions={
+      'nuoc-ep-tao':{title:'Nước ép táo',formula:'Nước + Táo + Đường + Máy sinh tố',ingredients:['nuoc','tao','duong','may-xay'],consume:['nuoc','tao','duong'],anchor:'may-xay',image:'testgame-assets/the-man-choi/nuoc-ep-tao.png'},
+      'nuoc-ep-chuoi':{title:'Nước ép chuối',formula:'Nước + Chuối + Đường + Máy sinh tố',ingredients:['nuoc','chuoi','duong','may-xay'],consume:['nuoc','chuoi','duong'],anchor:'may-xay',image:'testgame-assets/the-man-choi/nuoc-ep-chuoi.png'},
+      'thit-chien-bien-the':{title:'Thịt chiên (biến thể)',formula:'Thịt + Chảo chiên + Bếp ga',ingredients:['thit','chao-chien','bep-ga'],consume:['thit'],anchor:'bep-ga',image:'testgame-assets/the-man-choi/thit-chien-bien-the.png'},
+      'trung-chien':{title:'Trứng chiên',formula:'Trứng + Chảo chiên + Bếp ga',ingredients:['trung','chao-chien','bep-ga'],consume:['trung'],anchor:'bep-ga',image:'testgame-assets/the-man-choi/trung-chien.png'}
+    };
+    const cardImages={nuoc:'testgame-assets/the-man-choi/nuoc.png',tao:'testgame-assets/the-man-choi/tao.png',duong:'testgame-assets/the-man-choi/duong.png','may-xay':'testgame-assets/the-man-choi/may-xay.png','bep-ga':'testgame-assets/the-man-choi/bep-ga.png','nuoc-ep-tao':'testgame-assets/the-man-choi/nuoc-ep-tao.png','nuoc-ep-chuoi':'testgame-assets/the-man-choi/nuoc-ep-chuoi.png','thit-chien-bien-the':'testgame-assets/the-man-choi/thit-chien-bien-the.png','trung-chien':'testgame-assets/the-man-choi/trung-chien.png',chuoi:'testgame-assets/the-man-choi/chuoi.png',trung:'testgame-assets/the-man-choi/trung.png',thit:'testgame-assets/the-man-choi/thit.png','chao-chien':'testgame-assets/the-man-choi/chao-chien.png','mua-sam':'testgame-assets/the-man-choi/mua-sam.png','thung-rac':'testgame-assets/the-man-choi/thung-rac.png','voi-nuoc':'testgame-assets/the-man-choi/voi-nuoc.png',ban:'testgame-assets/the-man-choi/ban.png',xu:'testgame-assets/the-man-choi/xu.png','khach-hang':'testgame-assets/the-man-choi/khach-hang.png'};
+    const cardNames={nuoc:'Nước',tao:'Táo',duong:'Đường','may-xay':'Máy sinh tố','bep-ga':'Bếp ga','nuoc-ep-tao':'Nước ép táo','nuoc-ep-chuoi':'Nước ép chuối','thit-chien-bien-the':'Thịt chiên (biến thể)','trung-chien':'Trứng chiên',chuoi:'Chuối',trung:'Trứng',thit:'Thịt','chao-chien':'Chảo chiên','mua-sam':'Mua sắm','thung-rac':'Thùng rác','voi-nuoc':'Vòi nước',ban:'Bàn',xu:'Xu','khach-hang':'Khách hàng'};
+    const groupCards=group=>gameCards.filter(card=>card.group===group);
+    const linkedCardsFor=card=>{const linked=groupCards(card.group);return linked.length>1?linked:[card];};
+    const stackOrder=group=>groupCards(group).sort((a,b)=>a.order-b.order||a.id-b.id);
+    const cardElements=new Map();
+    const activeTasks=new Map();
+    const taskElements=new Map();
+    let faucetUses=0;
+    let faucetNoticeTimer=null;
+    let customerSpawnTimer=null;
+    let customerSpawnCount=0;
+    let selectedCustomerId=null;
+    let happyCount=0;
+    let angryCount=0;
+    let gameOver=false;
+    const customerTimers=new Map();
+    const updateMoodCounters=()=>{happyCountElement.textContent=String(happyCount);angryCountElement.textContent=String(angryCount);};
+    const cancelCustomerTimer=customer=>{const timer=customerTimers.get(customer.id);if(timer){clearTimeout(timer);customerTimers.delete(customer.id);}};
+    const showGameOver=()=>{
+      if(gameOver)return;
+      gameOver=true;
+      if(customerSpawnTimer){clearInterval(customerSpawnTimer);customerSpawnTimer=null;}
+      for(const timer of customerTimers.values())clearTimeout(timer);customerTimers.clear();
+      for(const task of activeTasks.values())clearInterval(task.timer);activeTasks.clear();
+      for(const element of taskElements.values())element.remove();taskElements.clear();
+      openModal('Màn chơi kết thúc','<p>Có hơn 5 khách rời đi mà chưa được phục vụ.</p><button class="close-button" id="restartGame" type="button">Xác nhận</button>');
+      document.querySelector('#closeModal').hidden=true;
+      document.querySelector('#restartGame').addEventListener('click',restartGame);
+      document.querySelector('#restartGame').focus();
+    };
+    const restartGame=()=>{
+      gameOver=false;
+      document.querySelector('#closeModal').hidden=false;
+      closeModal();
+      for(const timer of customerTimers.values())clearTimeout(timer);customerTimers.clear();
+      for(const task of activeTasks.values())clearInterval(task.timer);activeTasks.clear();
+      taskElements.forEach(element=>element.remove());taskElements.clear();
+      cardElements.forEach(element=>element.remove());cardElements.clear();gameCards.length=0;
+      discoveredRecipes.clear();nextCardId=1;highestCard=10;faucetUses=0;customerSpawnCount=0;selectedCustomerId=null;
+      happyCount=0;angryCount=0;updateMoodCounters();customerOrder.hidden=true;
+      initializeGame();
+    };
+    const showFaucetNotice=message=>{faucetNotice.textContent=message;faucetNotice.classList.add('visible');clearTimeout(faucetNoticeTimer);faucetNoticeTimer=setTimeout(()=>faucetNotice.classList.remove('visible'),2400);};
+    const syncFaucetProgress=()=>{
+      const faucet=gameCards.find(card=>card.kind==='voi-nuoc');
+      if(!faucet){faucetProgress.hidden=true;return;}
+      faucetProgress.hidden=false;
+      faucetProgress.style.left=`${faucet.x+.75}%`;
+      faucetProgress.style.top=`${faucet.y+faucet.order*4+17.8}%`;
+      faucetProgress.querySelector('i').style.width=`${faucetUses*25}%`;
+      faucetProgress.querySelector('span').textContent=`${faucetUses*25}%`;
+    };
+    const stopGroupTask=group=>{
+      const task=activeTasks.get(group);
+      if(task)clearInterval(task.timer);
+      activeTasks.delete(group);
+      taskElements.get(group)?.remove();taskElements.delete(group);
+    };
+    const syncTaskProgress=()=>{
+      for(const [group,element] of taskElements){if(!activeTasks.has(group)){element.remove();taskElements.delete(group);}}
+      for(const [group,task] of activeTasks){
+        const topCard=stackOrder(group).at(-1),parent=topCard&&cardElements.get(topCard.id);if(!parent)continue;
+        let indicator=taskElements.get(group);
+        if(!indicator){indicator=document.createElement('span');indicator.className='task-progress';indicator.innerHTML='<i></i><span></span>';taskElements.set(group,indicator);}
+        const labels={craft:'Đang chế biến',trash:'Đang dọn',delivery:'Đang phục vụ'};
+        indicator.querySelector('span').textContent=`${labels[task.type]} · ${task.progress}%`;
+        indicator.querySelector('i').style.width=`${task.progress}%`;
+        if(indicator.parentElement!==parent)parent.append(indicator);
+      }
+    };
+    const startGroupTask=(group,type,duration,finish)=>{
+      if(activeTasks.has(group))return;
+      const task={type,progress:0,timer:null};activeTasks.set(group,task);syncTaskProgress();
+      task.timer=setInterval(()=>{
+        if(!groupCards(group).length){stopGroupTask(group);return;}
+        task.progress=Math.min(100,task.progress+10);syncTaskProgress();
+        if(task.progress>=100){clearInterval(task.timer);activeTasks.delete(group);taskElements.get(group)?.remove();taskElements.delete(group);finish();}
+      },duration/10);
+    };
+    const finishTrash=group=>{
+      const members=groupCards(group),bin=members.find(card=>card.kind==='thung-rac');if(!bin)return;
+      const baseX=bin.x,baseY=bin.y+bin.order*4;
+      members.filter(card=>card!==bin).forEach(card=>{if(card.kind==='khach-hang'){cancelCustomerTimer(card);if(card.id===selectedCustomerId){customerOrder.hidden=true;selectedCustomerId=null;}}gameCards.splice(gameCards.indexOf(card),1);});
+      bin.group=`trash-${nextCardId++}`;bin.x=baseX;bin.y=baseY;bin.order=0;bin.z=++highestCard;
+      if(!gameCards.some(card=>card.kind==='voi-nuoc'))faucetUses=0;
+      renderCards();showFaucetNotice('Đã xóa các thẻ trong thùng rác');
+    };
+    const finishRecipe= (group,recipeId,recipe)=>{
+      const members=groupCards(group);
+      if(!recipe.ingredients.every(kind=>members.some(card=>card.kind===kind))){checkGroupInteractions(group);return;}
+      const anchor=members.find(card=>card.kind===recipe.anchor);if(!anchor)return;
+      const baseX=anchor.x,baseY=anchor.y;
+      recipe.consume.forEach(kind=>{const ingredient=groupCards(group).find(card=>card.kind===kind);if(ingredient)gameCards.splice(gameCards.indexOf(ingredient),1);});
+      const remaining=stackOrder(group);remaining.forEach((card,index)=>{card.order=index;card.x=baseX;card.y=baseY;card.z=++highestCard;});
+      addCard(recipeId,baseX,baseY,group,remaining.length);discoveredRecipes.add(recipeId);renderCards();
+      showFaucetNotice(`Đã chế biến: ${recipe.title}`);checkGroupInteractions(group);
+    };
+    const finishCustomerOrder=group=>{
+      const members=groupCards(group),customer=members.find(card=>card.kind==='khach-hang'),table=members.find(card=>card.kind==='ban');
+      const food=customer&&members.find(card=>card.kind===customer.requestedDish);if(!customer||!table||!food)return;
+      const baseX=table.x,baseY=table.y;
+      cancelCustomerTimer(customer);happyCount++;updateMoodCounters();
+      [customer,food].forEach(card=>gameCards.splice(gameCards.indexOf(card),1));
+      const remaining=stackOrder(group);remaining.forEach((card,index)=>{card.order=index;card.x=baseX;card.y=baseY;card.z=++highestCard;});
+      const order=remaining.length;addCard('xu',baseX,baseY,group,order);addCard('xu',baseX,baseY,group,order+1);
+      if(customer.id===selectedCustomerId){customerOrder.hidden=true;selectedCustomerId=null;}
+      renderCards();showFaucetNotice('Khách đã nhận món · nhận 2 xu');
+    };
+    const checkGroupInteractions=(group,trashTarget=false)=>{
+      const members=groupCards(group);if(!members.length)return;
+      if(trashTarget&&members.some(card=>card.kind==='thung-rac')&&members.length>1){startGroupTask(group,'trash',1000,()=>finishTrash(group));return;}
+      const customer=members.find(card=>card.kind==='khach-hang');
+      if(customer&&members.some(card=>card.kind==='ban')&&members.some(card=>card.kind===customer.requestedDish)){
+        startGroupTask(group,'delivery',15000,()=>finishCustomerOrder(group));return;
+      }
+      const shop=members.find(card=>card.kind==='mua-sam'),coins=members.filter(card=>card.kind==='xu');
+      if(shop&&coins.length>=10){finishShopExchange(group,'ban',10);return;}
+      if(shop&&coins.length>=2){finishShopExchange(group,'ingredients',2);return;}
+      for(const [recipeId,recipe] of Object.entries(recipeDefinitions)){
+        if(recipe.ingredients.every(kind=>members.some(card=>card.kind===kind))){startGroupTask(group,'craft',20000,()=>finishRecipe(group,recipeId,recipe));return;}
+      }
+    };
+    const finishShopExchange=(group,prize,coinCost)=>{
+      const members=groupCards(group),shop=members.find(card=>card.kind==='mua-sam');if(!shop)return;
+      const coins=members.filter(card=>card.kind==='xu').slice(0,coinCost);if(coins.length<coinCost)return;
+      const baseX=shop.x,baseY=shop.y;
+      coins.forEach(card=>gameCards.splice(gameCards.indexOf(card),1));
+      const remaining=stackOrder(group);remaining.forEach((card,index)=>{card.order=index;card.x=baseX;card.y=baseY;card.z=++highestCard;});
+      let order=remaining.length;
+      if(prize==='ban')addCard('ban',baseX,baseY,group,order);
+      else {
+        const pool=['trung','duong','thit','chuoi','tao'];
+        for(let index=0;index<2;index++)addCard(pool[Math.floor(Math.random()*pool.length)],baseX,baseY,group,order++);
+      }
+      renderCards();showFaucetNotice(prize==='ban'?'Đổi 10 xu lấy 1 thẻ Bàn':'Đổi 2 xu lấy 2 nguyên liệu ngẫu nhiên');
+    };
+    const showCustomerOrder=customer=>{
+      const recipe=recipeDefinitions[customer.requestedDish];if(!recipe)return;
+      selectedCustomerId=customer.id;
+      customerOrderContent.replaceChildren();
+      const image=document.createElement('img');image.src=recipe.image;image.alt=recipe.title;
+      const text=document.createElement('span');text.textContent=`Món cần phục vụ: ${recipe.title}`;
+      customerOrderContent.append(image,text);customerOrder.hidden=false;
+    };
+    const spawnCustomer=()=>{
+      const choices=Object.entries(recipeDefinitions),[recipeId,recipe]=choices[Math.floor(Math.random()*choices.length)];
+      const occupied=new Set(gameCards.filter(card=>card.kind==='khach-hang').map(card=>card.row));
+      let row=[0,1,2,3,4].find(index=>!occupied.has(index));if(row===undefined)row=customerSpawnCount%5;
+      const customer=addCard('khach-hang',87,3+row*18);customer.requestedDish=recipeId;customer.row=row;customerSpawnCount++;
+      const timer=setTimeout(()=>{
+        customerTimers.delete(customer.id);
+        const current=gameCards.find(card=>card.id===customer.id);if(!current)return;
+        gameCards.splice(gameCards.indexOf(current),1);angryCount++;updateMoodCounters();
+        if(selectedCustomerId===customer.id){customerOrder.hidden=true;selectedCustomerId=null;}
+        renderCards();showFaucetNotice('Khách đã rời đi vì chờ quá lâu');if(angryCount>5)showGameOver();
+      },50000);
+      customerTimers.set(customer.id,timer);
+      renderCards();showFaucetNotice('Có khách hàng mới!');
+    };
+    const startCustomerSchedule=()=>{
+      if(customerSpawnTimer)return;
+      customerSpawnTimer=setInterval(()=>{if(playScreen.classList.contains('active'))spawnCustomer();},30000);
+    };
+    const renderCards=()=>{
+      const activeIds=new Set(gameCards.map(card=>card.id));
+      for(const [id,element] of cardElements){if(!activeIds.has(id)){element.remove();cardElements.delete(id);}}
+      for(const card of gameCards){
+        let element=cardElements.get(card.id);
+        if(!element){
+          element=document.createElement('button'); element.type='button'; element.className='play-card'; element.dataset.cardId=card.id; element.setAttribute('aria-label',cardNames[card.kind]);
+          const image=document.createElement('img'); image.src=cardImages[card.kind]; image.alt=cardNames[card.kind]; element.append(image);
+          element.addEventListener('pointerdown',beginCardDrag); cardElements.set(card.id,element);
+        }
+        element.style.left=`${card.x}%`; element.style.top=`${card.y+card.order*4}%`; element.style.zIndex=String(card.z);
+        if(element.parentElement!==cardLayer) cardLayer.append(element);
+      }
+      syncFaucetProgress();syncTaskProgress();
+    };
+    const addCard=(kind,x,y,group=null,order=0)=>{const card={id:nextCardId++,kind,x,y,group:group??`group-${nextCardId}`,order,z:++highestCard};gameCards.push(card);return card;};
+    const initializeGame=()=>{
+      if(gameCards.length)return;
+      const kitchenGroup='initial-kitchen';
+      ['chao-chien','may-xay','bep-ga','mua-sam','thung-rac','voi-nuoc','ban','xu'].forEach((kind,index)=>addCard(kind,8,14,kitchenGroup,index));
+      const ingredientGroup='initial-ingredients';
+      ['chuoi','duong','tao','trung','thit'].forEach((kind,index)=>addCard(kind,66,14,ingredientGroup,index));
+      renderCards();startCustomerSchedule();
+    };
+    const useFaucet=()=>{
+      faucetUses++;
+      if(faucetUses>=4){
+        const faucet=gameCards.find(card=>card.kind==='voi-nuoc');
+        const stack=stackOrder(faucet.group);
+        addCard('nuoc',faucet.x,faucet.y,faucet.group,stack.at(-1).order+1);
+        faucetUses=0;renderCards();
+        showFaucetNotice('Đã lấy nước · tạo 1 thẻ Nước');
+      }else renderCards();
+    };
+    function beginCardDrag(event){
+      if(event.button!==0)return;event.preventDefault();
+      const card=gameCards.find(item=>item.id===Number(event.currentTarget.dataset.cardId));if(!card)return;
+      const stack=stackOrder(card.group);let splitGroup=null;if(stack.length>1&&stack.at(-1)===card){splitGroup=card.group;stopGroupTask(splitGroup);card.y+=card.order*4;card.group=`group-${nextCardId++}`;card.order=0;card.z=++highestCard;renderCards();}
+      const moving=linkedCardsFor(card),startX=event.clientX,startY=event.clientY,width=playWorld.clientWidth,height=playWorld.clientHeight;let moved=false;
+      stackOrder(card.group).forEach(item=>{item.z=++highestCard;});
+      const base=moving.map(item=>({item,x:item.x,y:item.y}));moving.forEach(item=>{const element=cardElements.get(item.id);element?.classList.add('dragging');if(element)element.style.zIndex=String(item.z);});playViewport.setPointerCapture(event.pointerId);
+      const move=e=>{const dx=(e.clientX-startX)/(width*boardZoom)*100,dy=(e.clientY-startY)/(height*boardZoom)*100;if(Math.abs(e.clientX-startX)+Math.abs(e.clientY-startY)>5)moved=true;base.forEach(({item,x,y})=>{item.x=x+dx;item.y=y+dy;});moving.forEach(item=>{const el=cardElements.get(item.id);if(el){el.style.left=`${item.x}%`;el.style.top=`${item.y+item.order*4}%`;}});syncFaucetProgress();};
+      const end=e=>{
+        playViewport.removeEventListener('pointermove',move);playViewport.removeEventListener('pointerup',end);playViewport.removeEventListener('pointercancel',end);
+        moving.forEach(item=>cardElements.get(item.id)?.classList.remove('dragging'));
+        moving.forEach(item=>{const el=cardLayer.querySelector(`[data-card-id="${item.id}"]`);if(el)el.style.pointerEvents='none';});
+        const targetElement=document.elementFromPoint(e.clientX,e.clientY)?.closest('.play-card');
+        moving.forEach(item=>{const el=cardLayer.querySelector(`[data-card-id="${item.id}"]`);if(el)el.style.pointerEvents='auto';});
+        const target=targetElement?gameCards.find(item=>item.id===Number(targetElement.dataset.cardId)):null;
+        if(target&&moved&&!moving.some(item=>item.group===target.group)){
+          const targetGroup=target.group,sourceGroup=card.group,targetStack=stackOrder(targetGroup),sourceStack=stackOrder(sourceGroup),anchorX=target.x,anchorY=target.y+target.order*4,merged=[...targetStack,...sourceStack];
+          stopGroupTask(targetGroup);if(sourceGroup!==targetGroup)stopGroupTask(sourceGroup);
+          merged.forEach((item,index)=>{item.group=targetGroup;item.order=index;item.x=anchorX;item.y=anchorY;item.z=++highestCard;});renderCards();checkGroupInteractions(targetGroup,target.kind==='thung-rac');
+        }else{
+          renderCards();if(splitGroup)checkGroupInteractions(splitGroup);checkGroupInteractions(card.group);
+        }
+        if(card.kind==='voi-nuoc'&&!moved&&playScreen.classList.contains('active'))useFaucet();
+        if(card.kind==='khach-hang'&&!moved&&playScreen.classList.contains('active'))showCustomerOrder(card);
+      };
+      playViewport.addEventListener('pointermove',move);playViewport.addEventListener('pointerup',end);playViewport.addEventListener('pointercancel',end);
+    }
+    document.querySelector('#recipeBook').addEventListener('click',()=>{
+      const completed=[...discoveredRecipes].map(id=>recipeDefinitions[id]);
+      const html=completed.length?`<div class="recipe-list">${completed.map(recipe=>`<div class="recipe-item"><img src="${recipe.image}" alt=""><div><strong>${recipe.title}</strong><br><span>${recipe.formula}</span></div></div>`).join('')}</div>`:'<p class="empty-recipes">Bạn chưa làm được công thức nào.</p>';
+      openModal('Công thức đã làm được',html);
+    });
+    document.querySelector('#closeCustomerOrder').addEventListener('click',()=>{customerOrder.hidden=true;selectedCustomerId=null;});
+    document.querySelectorAll('.menu-action:not(:disabled)').forEach(button=>button.addEventListener('click',()=>{
+      if(button.dataset.action==='start') openPlay();
+      if(button.dataset.action==='kitchen') openGallery();
+      if(button.dataset.action==='settings') openModal('Cài đặt',`<div class="setting-tile"><img src="${ui}nut_am_thanh.png" alt=""><div><strong>Âm thanh</strong><br><span>Chưa có tệp âm thanh trong bộ ảnh.</span></div></div><div class="setting-tile"><img src="${ui}nut_nen.png" alt=""><div><strong>Nền trò chơi</strong><br><span>Đang dùng nền xanh làm phông chính.</span></div></div>`);
+      if(button.dataset.action==='quit') openModal('Hẹn gặp lại!', '<p>Bạn có thể đóng trang trình duyệt để thoát khỏi trò chơi.</p>');
+    }));
+    document.querySelector('#backToMenu').addEventListener('click',()=>{ gameScreen.classList.remove('active'); menuScreen.classList.add('active'); });
+    document.querySelector('#playBackToMenu').addEventListener('click',()=>{ playScreen.classList.remove('active'); menuScreen.classList.add('active'); });
+    playViewport.addEventListener('wheel',event=>{
+      if(!playScreen.classList.contains('active')) return;
+      event.preventDefault();
+      setBoardZoom(boardZoom+(event.deltaY<0?.08:-.08));
+    },{passive:false});
+    const touchPoints=new Map();
+    let pinchStartDistance=0;
+    let pinchStartZoom=1;
+    const pointerDistance=points=>Math.hypot(points[0].x-points[1].x,points[0].y-points[1].y);
+    playViewport.addEventListener('pointerdown',event=>{
+      if(event.target.closest('.play-card')) return;
+      if(event.pointerType!=='touch') return;
+      touchPoints.set(event.pointerId,{x:event.clientX,y:event.clientY});
+      playViewport.setPointerCapture(event.pointerId);
+      if(touchPoints.size===2){ pinchStartDistance=pointerDistance([...touchPoints.values()]); pinchStartZoom=boardZoom; }
+    });
+    playViewport.addEventListener('pointermove',event=>{
+      if(event.pointerType!=='touch'||!touchPoints.has(event.pointerId)) return;
+      touchPoints.set(event.pointerId,{x:event.clientX,y:event.clientY});
+      if(touchPoints.size===2&&pinchStartDistance>0){
+        const distance=pointerDistance([...touchPoints.values()]);
+        setBoardZoom(pinchStartZoom*(distance/pinchStartDistance));
+      }
+    });
+    const endPinch=event=>{ touchPoints.delete(event.pointerId); if(touchPoints.size<2) pinchStartDistance=0; };
+    playViewport.addEventListener('pointerup',endPinch);
+    playViewport.addEventListener('pointercancel',endPinch);
+    document.querySelector('#closeModal').addEventListener('click',()=>{if(!gameOver)closeModal();});
+    modalShade.addEventListener('click',event=>{ if(event.target===modalShade&&!gameOver) closeModal(); });
+    document.addEventListener('keydown',event=>{ if(event.key==='Escape'&&!gameOver) closeModal(); });
+
+    const filters=document.querySelector('#filters');
+    const gallery=document.querySelector('#gallery');
+    const addFilter=(id,label)=>{
+      const button=document.createElement('button'); button.type='button'; button.textContent=label; button.setAttribute('aria-pressed',String(id==='all'));
+      button.addEventListener('click',()=>{ document.querySelectorAll('#filters button').forEach(item=>item.setAttribute('aria-pressed',String(item===button))); document.querySelectorAll('.group').forEach(section=>section.hidden=id!=='all'&&section.dataset.category!==id); });
+      filters.append(button);
+    };
+    addFilter('all','Tất cả');
+    categories.forEach(category=>{
+      addFilter(category.id,category.label);
+      const section=document.createElement('section'); section.className='group'; section.dataset.category=category.id;
+      const heading=document.createElement('h2'); heading.textContent=category.label;
+      const count=document.createElement('span'); count.className='count'; count.textContent=category.files.length; heading.append(count);
+      const grid=document.createElement('div'); grid.className='grid';
+      category.files.forEach(file=>{
+        const stem=file.replace(/\.png$/i,''); const card=document.createElement('article'); card.className='asset-card';
+        const image=document.createElement('img'); image.src=`testgame-assets/${category.id}/${file}`; image.alt=names[stem]||stem; image.loading='lazy';
+        const title=document.createElement('h3'); title.textContent=names[stem]||stem; card.append(image,title); grid.append(card);
+      });
+      section.append(heading,grid); gallery.append(section);
+    });
+  </script>
+</body>
+</html>
+
