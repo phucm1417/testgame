@@ -178,10 +178,10 @@
       { id:'mon-an', label:'Món ăn', files:['nuoc-ep-chuoi-2.png','nuoc-ep-tao-2.png','thit-chien-2.png','thit-chien-3.png','trung-chien-2.png'] },
       { id:'dung-cu-bep', label:'Dụng cụ bếp', files:['cay-danh-trung.png','chao-chien.png','dao.png','thot.png'] },
       { id:'thiet-bi-bep', label:'Thiết bị bếp', files:['bep-ga.png','binh-dien.png','binh-phat-dien.png','lo-nuong.png','lo-vi-song.png','may-pha-ca-phe.png','may-xay-sinh-to.png','noi-kho.png'] },
-      { id:'khac', label:'Khác', files:['mot-dong.png'] },
+      { id:'khac', label:'Khác', files:['ban.png','khach-hang.png','khach-hang-nu.png','mot-dong.png','tre-em-nam.png','tre-em-nu.png','xu.png'] },
     ];
     const names = {
-      'bep-ga':'Bếp ga','binh-dien':'Bình điện','binh-phat-dien':'Bình phát điện','cay-danh-trung':'Cây đánh trứng','chao-chien':'Chảo chiên','chuoi':'Chuối','dao':'Dao','dau-an':'Dầu ăn','duong-the':'Đường','lo-nuong':'Lò nướng','lo-vi-song':'Lò vi sóng','may-pha-ca-phe':'Máy pha cà phê','may-xay-sinh-to':'Máy xay sinh tố','mieng-thit':'Miếng thịt','mot-dong':'Một đồng','muoi-bien':'Muối biển','noi-kho':'Nồi kho','nuoc-duplicate':'Nước','nuoc-ep-chuoi-2':'Nước ép chuối','nuoc-ep-tao-2':'Nước ép táo','nuoc-tuong':'Nước tương','tao':'Táo','thit-chien-2':'Thịt chiên','thit-chien-3':'Thịt chiên (biến thể)','thit':'Thịt','thot':'Thớt','trung-chien-2':'Trứng chiên','trung':'Trứng'
+      'ban':'Bàn','bep-ga':'Bếp ga','binh-dien':'Bình điện','binh-phat-dien':'Bình phát điện','cay-danh-trung':'Cây đánh trứng','chao-chien':'Chảo chiên','chuoi':'Chuối','dao':'Dao','dau-an':'Dầu ăn','duong-the':'Đường','khach-hang':'Khách hàng nam','khach-hang-nu':'Khách hàng nữ','lo-nuong':'Lò nướng','lo-vi-song':'Lò vi sóng','may-pha-ca-phe':'Máy pha cà phê','may-xay-sinh-to':'Máy xay sinh tố','mieng-thit':'Miếng thịt','mot-dong':'Một đồng','muoi-bien':'Muối biển','noi-kho':'Nồi kho','nuoc-duplicate':'Nước','nuoc-ep-chuoi-2':'Nước ép chuối','nuoc-ep-tao-2':'Nước ép táo','nuoc-tuong':'Nước tương','tao':'Táo','thit-chien-2':'Thịt chiên','thit-chien-3':'Thịt chiên (biến thể)','thit':'Thịt','thot':'Thớt','tre-em-nam':'Khách nhí nam','tre-em-nu':'Khách nhí nữ','trung-chien-2':'Trứng chiên','trung':'Trứng','xu':'Xu'
     };
     const menuScreen=document.querySelector('#menuScreen');
     const playScreen=document.querySelector('#playScreen');
@@ -219,6 +219,12 @@
       'trung-chien':{title:'Trứng chiên',formula:'Trứng + Chảo chiên + Bếp ga',ingredients:['trung','chao-chien','bep-ga'],consume:['trung'],anchor:'bep-ga',image:'testgame-assets/the-man-choi/trung-chien.png'}
     };
     const cardImages={nuoc:'testgame-assets/the-man-choi/nuoc.png',tao:'testgame-assets/the-man-choi/tao.png',duong:'testgame-assets/the-man-choi/duong.png','may-xay':'testgame-assets/the-man-choi/may-xay.png','bep-ga':'testgame-assets/the-man-choi/bep-ga.png','nuoc-ep-tao':'testgame-assets/the-man-choi/nuoc-ep-tao.png','nuoc-ep-chuoi':'testgame-assets/the-man-choi/nuoc-ep-chuoi.png','thit-chien-bien-the':'testgame-assets/the-man-choi/thit-chien-bien-the.png','trung-chien':'testgame-assets/the-man-choi/trung-chien.png',chuoi:'testgame-assets/the-man-choi/chuoi.png',trung:'testgame-assets/the-man-choi/trung.png',thit:'testgame-assets/the-man-choi/thit.png','chao-chien':'testgame-assets/the-man-choi/chao-chien.png','mua-sam':'testgame-assets/the-man-choi/mua-sam.png','thung-rac':'testgame-assets/the-man-choi/thung-rac.png','voi-nuoc':'testgame-assets/the-man-choi/voi-nuoc.png',ban:'testgame-assets/the-man-choi/ban.png',xu:'testgame-assets/the-man-choi/xu.png','khach-hang':'testgame-assets/the-man-choi/khach-hang.png'};
+    const customerVariants=[
+      {name:'Khách hàng nam',image:'testgame-assets/khac/khach-hang.png'},
+      {name:'Khách hàng nữ',image:'testgame-assets/khac/khach-hang-nu.png'},
+      {name:'Khách nhí nam',image:'testgame-assets/khac/tre-em-nam.png'},
+      {name:'Khách nhí nữ',image:'testgame-assets/khac/tre-em-nu.png'}
+    ];
     const cardNames={nuoc:'Nước',tao:'Táo',duong:'Đường','may-xay':'Máy sinh tố','bep-ga':'Bếp ga','nuoc-ep-tao':'Nước ép táo','nuoc-ep-chuoi':'Nước ép chuối','thit-chien-bien-the':'Thịt chiên (biến thể)','trung-chien':'Trứng chiên',chuoi:'Chuối',trung:'Trứng',thit:'Thịt','chao-chien':'Chảo chiên','mua-sam':'Mua sắm','thung-rac':'Thùng rác','voi-nuoc':'Vòi nước',ban:'Bàn',xu:'Xu','khach-hang':'Khách hàng'};
     const ingredientKinds=new Set(['nuoc','tao','duong','chuoi','trung','thit']);
     const groupCards=group=>gameCards.filter(card=>card.group===group);
@@ -402,9 +408,10 @@
     };
     const spawnCustomer=()=>{
       const choices=Object.entries(recipeDefinitions),[recipeId,recipe]=choices[Math.floor(Math.random()*choices.length)];
+      const variant=customerVariants[Math.floor(Math.random()*customerVariants.length)];
       const occupied=new Set(gameCards.filter(card=>card.kind==='khach-hang').map(card=>card.row));
       let row=[0,1,2,3,4].find(index=>!occupied.has(index));if(row===undefined)row=customerSpawnCount%5;
-      const customer=addCard('khach-hang',87,3+row*18);customer.requestedDish=recipeId;customer.row=row;customerSpawnCount++;
+      const customer=addCard('khach-hang',87,3+row*18);customer.requestedDish=recipeId;customer.row=row;customer.image=variant.image;customer.displayName=variant.name;customerSpawnCount++;
       scheduleCustomerExpiration(customer,50000);
       renderCards();showFaucetNotice('Có khách hàng mới!');
     };
@@ -418,8 +425,8 @@
       for(const card of gameCards){
         let element=cardElements.get(card.id);
         if(!element){
-          element=document.createElement('button'); element.type='button'; element.className='play-card'; element.dataset.cardId=card.id; element.setAttribute('aria-label',cardNames[card.kind]);
-          const image=document.createElement('img'); image.src=cardImages[card.kind]; image.alt=cardNames[card.kind]; element.append(image);
+          element=document.createElement('button'); element.type='button'; element.className='play-card'; element.dataset.cardId=card.id; element.setAttribute('aria-label',card.displayName||cardNames[card.kind]);
+          const image=document.createElement('img'); image.src=card.image||cardImages[card.kind]; image.alt=card.displayName||cardNames[card.kind]; element.append(image);
           element.addEventListener('pointerdown',beginCardDrag); cardElements.set(card.id,element);
         }
         element.style.left=`${card.x}%`; element.style.top=`${card.y+card.order*4}%`; element.style.zIndex=String(card.z);
