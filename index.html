@@ -235,13 +235,37 @@
     let angryCount=0;
     let gameOver=false;
     const customerTimers=new Map();
+    const customerDeadlines=new Map();
+    const pausedCustomerTimers=new Map();
     const updateMoodCounters=()=>{happyCountElement.textContent=String(happyCount);angryCountElement.textContent=String(angryCount);};
-    const cancelCustomerTimer=customer=>{const timer=customerTimers.get(customer.id);if(timer){clearTimeout(timer);customerTimers.delete(customer.id);}};
+    const cancelCustomerTimer=customer=>{if(customerTimers.has(customer.id))clearTimeout(customerTimers.get(customer.id));customerTimers.delete(customer.id);customerDeadlines.delete(customer.id);pausedCustomerTimers.delete(customer.id);};
+    const scheduleCustomerExpiration=(customer,delay)=>{
+      customerDeadlines.set(customer.id,Date.now()+delay);
+      const timer=setTimeout(()=>{
+        customerTimers.delete(customer.id);customerDeadlines.delete(customer.id);pausedCustomerTimers.delete(customer.id);
+        const current=gameCards.find(card=>card.id===customer.id);if(!current)return;
+        gameCards.splice(gameCards.indexOf(current),1);angryCount++;updateMoodCounters();
+        if(selectedCustomerId===customer.id){customerOrder.hidden=true;selectedCustomerId=null;}
+        renderCards();showFaucetNotice('Khách đã rời đi vì chờ quá lâu');if(angryCount>5)showGameOver();
+      },Math.max(0,delay));
+      customerTimers.set(customer.id,timer);
+    };
+    const pauseCustomerTimer=customer=>{
+      if(customerTimers.has(customer.id)){
+        clearTimeout(customerTimers.get(customer.id));customerTimers.delete(customer.id);
+        pausedCustomerTimers.set(customer.id,Math.max(0,(customerDeadlines.get(customer.id)||Date.now())-Date.now()));customerDeadlines.delete(customer.id);
+      }
+    };
+    const resumeCustomerTimer=customer=>{
+      if(!pausedCustomerTimers.has(customer.id))return;
+      const remaining=pausedCustomerTimers.get(customer.id);pausedCustomerTimers.delete(customer.id);
+      if(gameCards.some(card=>card.id===customer.id))scheduleCustomerExpiration(customer,remaining);
+    };
     const showGameOver=()=>{
       if(gameOver)return;
       gameOver=true;
       if(customerSpawnTimer){clearInterval(customerSpawnTimer);customerSpawnTimer=null;}
-      for(const timer of customerTimers.values())clearTimeout(timer);customerTimers.clear();
+      for(const timer of customerTimers.values())clearTimeout(timer);customerTimers.clear();customerDeadlines.clear();pausedCustomerTimers.clear();
       for(const task of activeTasks.values())clearInterval(task.timer);activeTasks.clear();
       for(const element of taskElements.values())element.remove();taskElements.clear();
       openModal('Màn chơi kết thúc','<p>Có hơn 5 khách rời đi mà chưa được phục vụ.</p><button class="close-button" id="restartGame" type="button">Xác nhận</button>');
@@ -253,7 +277,7 @@
       gameOver=false;
       document.querySelector('#closeModal').hidden=false;
       closeModal();
-      for(const timer of customerTimers.values())clearTimeout(timer);customerTimers.clear();
+      for(const timer of customerTimers.values())clearTimeout(timer);customerTimers.clear();customerDeadlines.clear();pausedCustomerTimers.clear();
       for(const task of activeTasks.values())clearInterval(task.timer);activeTasks.clear();
       taskElements.forEach(element=>element.remove());taskElements.clear();
       cardElements.forEach(element=>element.remove());cardElements.clear();gameCards.length=0;
@@ -276,6 +300,7 @@
       if(task)clearInterval(task.timer);
       activeTasks.delete(group);
       taskElements.get(group)?.remove();taskElements.delete(group);
+      if(task?.type==='delivery'){const customer=groupCards(group).find(card=>card.kind==='khach-hang');if(customer)resumeCustomerTimer(customer);}
     };
     const syncTaskProgress=()=>{
       for(const [group,element] of taskElements){if(!activeTasks.has(group)){element.remove();taskElements.delete(group);}}
@@ -291,6 +316,7 @@
     };
     const startGroupTask=(group,type,duration,finish)=>{
       if(activeTasks.has(group))return;
+      if(type==='delivery'){const customer=groupCards(group).find(card=>card.kind==='khach-hang');if(customer)pauseCustomerTimer(customer);}
       const task={type,progress:0,timer:null};activeTasks.set(group,task);syncTaskProgress();
       task.timer=setInterval(()=>{
         if(!groupCards(group).length){stopGroupTask(group);return;}
@@ -368,14 +394,7 @@
       const occupied=new Set(gameCards.filter(card=>card.kind==='khach-hang').map(card=>card.row));
       let row=[0,1,2,3,4].find(index=>!occupied.has(index));if(row===undefined)row=customerSpawnCount%5;
       const customer=addCard('khach-hang',87,3+row*18);customer.requestedDish=recipeId;customer.row=row;customerSpawnCount++;
-      const timer=setTimeout(()=>{
-        customerTimers.delete(customer.id);
-        const current=gameCards.find(card=>card.id===customer.id);if(!current)return;
-        gameCards.splice(gameCards.indexOf(current),1);angryCount++;updateMoodCounters();
-        if(selectedCustomerId===customer.id){customerOrder.hidden=true;selectedCustomerId=null;}
-        renderCards();showFaucetNotice('Khách đã rời đi vì chờ quá lâu');if(angryCount>5)showGameOver();
-      },50000);
-      customerTimers.set(customer.id,timer);
+      scheduleCustomerExpiration(customer,50000);
       renderCards();showFaucetNotice('Có khách hàng mới!');
     };
     const startCustomerSchedule=()=>{
