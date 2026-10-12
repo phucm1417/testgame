@@ -51,6 +51,17 @@
     .mood-counters { position:absolute; z-index:4; top:50%; right:10px; display:flex; flex-direction:column; gap:8px; transform:translateY(-50%); pointer-events:none; }
     .mood-counter { display:grid; justify-items:center; min-width:48px; padding:6px 7px; border:2px solid #fff4dc; border-radius:13px; background:#f3e8d3ed; color:var(--ink); box-shadow:0 3px 0 #536d5b; font-weight:900; line-height:1.1; }
     .mood-counter-icon { font-size:23px; }
+    .help-dock { position:absolute; z-index:4; top:50%; left:10px; display:flex; align-items:center; gap:0; transform:translateY(-50%); }
+    .help-panel { width:min(270px,calc(100vw - 66px)); max-height:min(72vh,440px); overflow:auto; padding:13px; border:2px solid #fff4dc; border-radius:15px 0 0 15px; background:#f3e8d3f2; color:var(--ink); box-shadow:0 4px 0 #536d5b; }
+    .help-panel h2 { margin:0 0 8px; font-size:1rem; }
+    .help-list { display:grid; gap:5px; margin:0; padding:0; list-style:none; }
+    .help-list li { display:flex; align-items:flex-start; gap:8px; padding:6px 7px; border-radius:8px; background:#fff9eb; font-size:.82rem; line-height:1.25; transition:opacity .2s ease,background .2s ease; }
+    .help-list li::before { content:'○'; flex:0 0 16px; color:#648578; font-weight:900; text-align:center; }
+    .help-list li.completed { opacity:.48; text-decoration:line-through; background:#e3e8dc; }
+    .help-list li.completed::before { content:'✓'; color:#347b4a; text-decoration:none; }
+    .help-toggle { display:grid; place-items:center; gap:5px; width:34px; min-height:96px; padding:8px 5px; border:2px solid #fff4dc; border-left:0; border-radius:0 12px 12px 0; background:#397b70; color:#fff8e9; box-shadow:0 4px 0 #536d5b; font-size:.75rem; font-weight:900; cursor:pointer; }
+    .help-toggle-label { writing-mode:vertical-rl; }
+    .help-toggle-arrow { font-size:1rem; line-height:1; }
     .play-topline { position:absolute; z-index:2; top:18px; left:22px; right:22px; display:flex; justify-content:space-between; align-items:center; pointer-events:none; }
     .play-topline > * { pointer-events:auto; }
     .topline { position:relative; z-index:2; width:min(1180px,100%); margin:0 auto 16px; display:flex; align-items:center; justify-content:space-between; gap:14px; }
@@ -95,6 +106,9 @@
       .recipe-button { padding:8px 10px; }
       .faucet-notice { top:58px; right:12px; }
       .customer-order { right:12px; bottom:12px; }
+      .help-dock { left:6px; }
+      .help-panel { padding:9px; }
+      .help-list li { font-size:.76rem; padding:5px; }
       .gallery-wrap { padding:13px; }
       .grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
       .asset-card { min-height:174px; }
@@ -145,6 +159,20 @@
       <div class="mood-counter" aria-label="Khách đã phục vụ"><span class="mood-counter-icon" aria-hidden="true">🙂</span><span id="happyCount">0</span></div>
       <div class="mood-counter" aria-label="Khách đã rời đi"><span class="mood-counter-icon" aria-hidden="true">😠</span><span id="angryCount">0</span></div>
     </aside>
+    <aside class="help-dock" aria-label="Hướng dẫn thao tác">
+      <section class="help-panel" id="helpPanel" aria-labelledby="helpTitle">
+        <h2 id="helpTitle">Hướng dẫn</h2>
+        <ul class="help-list" id="helpChecklist">
+          <li data-guide-step="drag">Kéo thả thẻ để di chuyển</li>
+          <li data-guide-step="stack">Xếp chồng để liên kết; kéo thẻ dưới cùng để di chuyển cả chồng, kéo thẻ trên cùng để tách</li>
+          <li data-guide-step="recipe">Kết hợp nguyên liệu và dụng cụ để chế biến món, mở công thức</li>
+          <li data-guide-step="shop">Dùng Xu tại thẻ Mua sắm để đổi nguyên liệu hoặc Bàn</li>
+          <li data-guide-step="trash">Dùng Thùng rác để xóa thẻ hoặc đổi 3 nguyên liệu lấy Xu</li>
+          <li data-guide-step="serve">Ghép món khách yêu cầu với Khách hàng và Bàn để phục vụ</li>
+        </ul>
+      </section>
+      <button class="help-toggle" id="helpToggle" type="button" aria-controls="helpPanel" aria-expanded="true"><span class="help-toggle-arrow" aria-hidden="true">‹</span><span class="help-toggle-label">Hướng dẫn</span></button>
+    </aside>
     <aside class="customer-order" id="customerOrder" hidden aria-live="polite">
       <button class="customer-order-close" id="closeCustomerOrder" type="button" aria-label="Đóng yêu cầu">×</button>
       <h2>Khách hàng yêu cầu</h2>
@@ -193,6 +221,11 @@
     const customerOrderContent=document.querySelector('#customerOrderContent');
     const happyCountElement=document.querySelector('#happyCount');
     const angryCountElement=document.querySelector('#angryCount');
+    const helpPanel=document.querySelector('#helpPanel');
+    const helpToggle=document.querySelector('#helpToggle');
+    const guideSteps=new Map([...document.querySelectorAll('[data-guide-step]')].map(item=>[item.dataset.guideStep,item]));
+    const completeGuideStep=key=>{const item=guideSteps.get(key);if(item&&!item.classList.contains('completed')){item.classList.add('completed');item.setAttribute('aria-label',`${item.textContent.trim()} · hoàn thành`);}};
+    const resetGuideSteps=()=>guideSteps.forEach(item=>{item.classList.remove('completed');item.removeAttribute('aria-label');});
     const playViewport=document.querySelector('#playViewport');
     const playBoard=document.querySelector('#playBoard');
     const playWorld=document.querySelector('#playWorld');
@@ -289,7 +322,7 @@
       taskElements.forEach(element=>element.remove());taskElements.clear();
       cardElements.forEach(element=>element.remove());cardElements.clear();gameCards.length=0;
       discoveredRecipes.clear();nextCardId=1;highestCard=10;faucetUses=0;customerSpawnCount=0;selectedCustomerId=null;
-      happyCount=0;angryCount=0;updateMoodCounters();customerOrder.hidden=true;
+      happyCount=0;angryCount=0;updateMoodCounters();customerOrder.hidden=true;resetGuideSteps();
       initializeGame();
     };
     const showFaucetNotice=message=>{faucetNotice.textContent=message;faucetNotice.classList.add('visible');clearTimeout(faucetNoticeTimer);faucetNoticeTimer=setTimeout(()=>faucetNotice.classList.remove('visible'),2400);};
@@ -338,18 +371,19 @@
       if(ingredients.length===3&&members.length===4){
         ingredients.forEach(card=>gameCards.splice(gameCards.indexOf(card),1));
         bin.group=`trash-${nextCardId++}`;bin.x=baseX;bin.y=baseY;bin.order=0;bin.z=++highestCard;
-        addCard('xu',baseX,baseY,bin.group,1);renderCards();showFaucetNotice('Tái chế 3 nguyên liệu · nhận 1 xu');return;
+        addCard('xu',baseX,baseY,bin.group,1);completeGuideStep('trash');renderCards();showFaucetNotice('Tái chế 3 nguyên liệu · nhận 1 xu');return;
       }
       members.filter(card=>card!==bin).forEach(card=>{if(card.kind==='khach-hang'){cancelCustomerTimer(card);if(card.id===selectedCustomerId){customerOrder.hidden=true;selectedCustomerId=null;}}gameCards.splice(gameCards.indexOf(card),1);});
       bin.group=`trash-${nextCardId++}`;bin.x=baseX;bin.y=baseY;bin.order=0;bin.z=++highestCard;
       if(!gameCards.some(card=>card.kind==='voi-nuoc'))faucetUses=0;
-      renderCards();showFaucetNotice('Đã xóa các thẻ trong thùng rác');
+      completeGuideStep('trash');renderCards();showFaucetNotice('Đã xóa các thẻ trong thùng rác');
     };
     const finishRecipe= (group,recipeId,recipe)=>{
       const members=groupCards(group);
       if(!recipe.ingredients.every(kind=>members.some(card=>card.kind===kind))){checkGroupInteractions(group);return;}
       const anchor=members.find(card=>card.kind===recipe.anchor);if(!anchor)return;
       const baseX=anchor.x,baseY=anchor.y;
+      completeGuideStep('recipe');
       recipe.consume.forEach(kind=>{const ingredient=groupCards(group).find(card=>card.kind===kind);if(ingredient)gameCards.splice(gameCards.indexOf(ingredient),1);});
       const remaining=stackOrder(group);remaining.forEach((card,index)=>{card.order=index;card.x=baseX;card.y=baseY;card.z=++highestCard;});
       addCard(recipeId,baseX,baseY,group,remaining.length);discoveredRecipes.add(recipeId);renderCards();
@@ -359,6 +393,7 @@
       const members=groupCards(group),customer=members.find(card=>card.kind==='khach-hang'),table=members.find(card=>card.kind==='ban');
       const food=customer&&members.find(card=>card.kind===customer.requestedDish);if(!customer||!table||!food)return;
       const baseX=table.x,baseY=table.y;
+      completeGuideStep('serve');
       cancelCustomerTimer(customer);
       const reducedAnger=angryCount>0;
       if(reducedAnger)angryCount--;else happyCount++;
@@ -387,6 +422,7 @@
       const members=groupCards(group),shop=members.find(card=>card.kind==='mua-sam');if(!shop)return;
       const coins=members.filter(card=>card.kind==='xu').slice(0,coinCost);if(coins.length<coinCost)return;
       const baseX=shop.x,baseY=shop.y;
+      completeGuideStep('shop');
       coins.forEach(card=>gameCards.splice(gameCards.indexOf(card),1));
       const remaining=stackOrder(group);remaining.forEach((card,index)=>{card.order=index;card.x=baseX;card.y=baseY;card.z=++highestCard;});
       let order=remaining.length;
@@ -468,7 +504,9 @@
         const targetElement=document.elementFromPoint(e.clientX,e.clientY)?.closest('.play-card');
         moving.forEach(item=>{const el=cardLayer.querySelector(`[data-card-id="${item.id}"]`);if(el)el.style.pointerEvents='auto';});
         const target=targetElement?gameCards.find(item=>item.id===Number(targetElement.dataset.cardId)):null;
+        if(moved)completeGuideStep('drag');
         if(target&&moved&&!moving.some(item=>item.group===target.group)){
+          completeGuideStep('stack');
           const targetGroup=target.group,sourceGroup=card.group,targetStack=stackOrder(targetGroup),sourceStack=stackOrder(sourceGroup),anchorX=target.x,anchorY=target.y+target.order*4,merged=[...targetStack,...sourceStack];
           stopGroupTask(targetGroup);if(sourceGroup!==targetGroup)stopGroupTask(sourceGroup);
           merged.forEach((item,index)=>{item.group=targetGroup;item.order=index;item.x=anchorX;item.y=anchorY;item.z=++highestCard;});renderCards();checkGroupInteractions(targetGroup,target.kind==='thung-rac'||sourceStack.some(item=>item.kind==='thung-rac'));
@@ -486,6 +524,7 @@
       openModal('Công thức đã làm được',html);
     });
     document.querySelector('#closeCustomerOrder').addEventListener('click',()=>{customerOrder.hidden=true;selectedCustomerId=null;});
+    helpToggle.addEventListener('click',()=>{helpPanel.hidden=!helpPanel.hidden;helpToggle.setAttribute('aria-expanded',String(!helpPanel.hidden));helpToggle.querySelector('.help-toggle-arrow').textContent=helpPanel.hidden?'›':'‹';});
     document.querySelectorAll('.menu-action:not(:disabled)').forEach(button=>button.addEventListener('click',()=>{
       if(button.dataset.action==='start') openPlay();
       if(button.dataset.action==='kitchen') openGallery();
